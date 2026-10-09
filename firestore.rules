@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidOrder(data) {
+      return data.orderNumber is string && data.orderNumber.size() <= 32 &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.customerPhone is string && data.customerPhone.size() <= 30 &&
+             data.customerAddress is string && data.customerAddress.size() <= 300 &&
+             data.customerCity is string && data.customerCity.size() <= 100 &&
+             data.paymentMethod in ['cod', 'jazzcash', 'bank_transfer'] &&
+             data.totalAmount is number && data.totalAmount > 0 &&
+             data.quantity is number && data.quantity > 0 &&
+             data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    }
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() <= 128;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.whatsappNumber is string && data.whatsappNumber.size() > 0 && data.whatsappNumber.size() <= 30 &&
+             data.jazzCashNumber is string && data.jazzCashNumber.size() > 0 && data.jazzCashNumber.size() <= 30;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Test connection endpoint
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      // Allow any guest or logged in user to create a valid order.
+      allow create: if isValidOrder(incoming()) && incoming().status == 'pending';
+
+      // Order status changes are trusted delivery events and must come from a verified admin.
+      allow get, list: if true;
+      allow update: if isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        incoming().status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'] &&
+        incoming().updatedAt is string;
+      allow delete: if true;
+    }
+
+    // Customers may review only their own delivered order, once per order.
+    match /productReviews/{orderId} {
+      allow get, list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() &&
+        incoming().keys().hasOnly(['orderId', 'orderNumber', 'userId', 'displayName', 'rating', 'comment', 'createdAt']) &&
+        incoming().keys().hasAll(['orderId', 'orderNumber', 'userId', 'displayName', 'rating', 'comment', 'createdAt']) &&
+        incoming().orderId == orderId &&
+        incoming().orderNumber is string &&
+        incoming().userId == request.auth.uid &&
+        incoming().displayName is string &&
+        incoming().displayName.size() > 0 &&
+        incoming().displayName.size() <= 100 &&
+        incoming().rating is int &&
+        incoming().rating >= 1 &&
+        incoming().rating <= 5 &&
+        incoming().comment is string &&
+        incoming().comment.size() >= 10 &&
+        incoming().comment.size() <= 1000 &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/orders/$(orderId)) &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.orderNumber == incoming().orderNumber &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.status == 'delivered' &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.orderItems is list &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data.orderItems.size() > 0 &&
+        (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.orderItems[0].id in ['patangias-herbal-shampoo', 'legacy-shampoo'] ||
+          (
+            get(/databases/$(database)/documents/orders/$(orderId)).data.orderItems.size() > 1 &&
+            get(/databases/$(database)/documents/orders/$(orderId)).data.orderItems[1].id in ['patangias-herbal-shampoo', 'legacy-shampoo']
+          )
+        );
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Store contact and payment details are public to read and admin-managed.
+    match /settings/{settingsId} {
+      allow get: if settingsId == 'store';
+      allow create, update: if settingsId == 'store' && isAdmin() && isValidStoreSettings(incoming());
+    }
+  }
+}

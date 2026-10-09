@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order for Patangia's Herbal Shampoo",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "customerName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "customerPhone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "customerAddress": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "customerCity": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["cod", "bank_transfer"]
+        },
+        "totalAmount": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "shipped", "delivered", "cancelled"]
+        },
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "orderNotes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "orderNumber",
+        "customerName",
+        "customerPhone",
+        "customerAddress",
+        "customerCity",
+        "paymentMethod",
+        "totalAmount",
+        "status",
+        "quantity"
+      ]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile for registered customers",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 150
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid"
+      ]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Store customer orders"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Store customer profiles"
+    }
+  }
+}

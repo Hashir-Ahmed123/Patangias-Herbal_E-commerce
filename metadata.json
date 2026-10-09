@@ -1,0 +1,6 @@
+{
+  "name": "Patangia's Herbal Shampoo",
+  "description": "Premium 100% natural herbal shampoo with 12 botanical extracts for hair fall control, thick roots, and natural shine.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

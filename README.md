@@ -83,3 +83,6 @@ npm run preview # Preview the production build locally
 - `src/lib/` — Firebase initialization and shared utilities
 - `firestore.rules` — Cloud Firestore authorization and validation rules
 - `.env.example` — template for local Firebase configuration
+
+## Visit Our Website
+https://patangias-herbal-shampoo.netlify.app/
